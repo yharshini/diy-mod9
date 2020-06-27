@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns:validation="http://www.mulesoft.org/schema/mule/validation"
+	xmlns:http="http://www.mulesoft.org/schema/mule/http"
+	xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/validation http://www.mulesoft.org/schema/mule/validation/current/mule-validation.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+	<validation:config name="Validation_Config" doc:name="Validation Config" doc:id="1e294dbb-3da7-465c-b95e-a05ee4b6f4ee" />
+	<flow name="mainFlow" doc:id="385df316-468e-44e7-acb6-6cf982a80761" >
+		<http:listener doc:name="Listener" doc:id="c693afd6-e5ac-4c1e-90bb-615e7c1d513c" config-ref="HTTP_Listener_config" path="/flights_accounts"/>
+		<scatter-gather doc:name="Scatter-Gather" doc:id="c1059648-2b14-4826-aee6-3348d4b9cf4a" >
+			<route >
+				<flow-ref doc:name="calltoAccountsFlow" doc:id="4ea68973-b60c-4933-a050-90d08aa91ff8" name="accounts"/>
+			</route>
+			<route >
+				<flow-ref doc:name="calltoFlightsFlow" doc:id="3442804c-72db-4227-a58d-09af0ba939a0" name="flights"/>
+			</route>
+		</scatter-gather>
+		<logger level="INFO" doc:name="Logger" doc:id="5fe02f29-ff26-4763-a772-1253ae6e565a" />
+		<choice doc:name="Choice" doc:id="a302af75-d704-463e-a9d6-e44ed194d572" >
+			<when expression="#[not ( isEmpty(payload['0'].payload) or payload['1'].payload.body.listAllFlightsResponse == null )]">
+				<ee:transform doc:name="Transform Message" doc:id="348e0131-f65a-46e5-8331-09e7eb33de19">
+			<ee:message>
+				<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+	Accounts:
+	{
+		attributes: payload['0'].attributes,
+		payload: payload['0'].payload
+	},
+	
+	Flights:
+	{
+		attributes: payload['1'].attributes,
+		payload: payload['1'].payload.body
+	}
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+			</when>
+			<when expression="#[isEmpty(payload['0'].payload) or not (payload['1'].payload.body.listAllFlightsResponse == null )]">
+				<set-payload value="Accounts service returned with no Accounts!" doc:name="AccountsService" doc:id="2eaf57ae-4050-4e6e-af1d-c97c08eff05b" />
+			</when>
+			<when expression="#[not ( isEmpty(payload['0'].payload)) or payload['1'].payload.body.listAllFlightsResponse == null]">
+				<set-payload value="Flights service returned with no flights!" doc:name="Flights service " doc:id="19af2fc0-f43f-4c87-9278-7bcf68186069" />
+			</when>
+			<otherwise >
+				<set-payload value="Accounts and flights are empty!" doc:name="Accounts and flights are empty" doc:id="5a478d5f-41d8-478f-9bd2-f675193e52d6" />
+			</otherwise>
+		</choice>
+		<logger level="INFO" doc:name="Logger" doc:id="3f1a24b1-c6b3-4d27-ba16-a9b151acc86b" />
+	</flow>
+</mule>
